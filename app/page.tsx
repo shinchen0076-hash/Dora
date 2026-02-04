@@ -53,6 +53,7 @@ export default function Home() {
 
   const [count, setCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
@@ -275,6 +276,7 @@ export default function Home() {
 
   async function startCountdown() {
     if (busy) return;
+    setCaptureError(null);
     setQrUrl(null);
     setResultUrl(null);
     setResultBlob(null);
@@ -300,6 +302,7 @@ export default function Home() {
 
   async function doCapture() {
     setBusy(true);
+    setCaptureError(null);
     try {
       const track = trackRef.current;
       const video = videoRef.current;
@@ -451,6 +454,10 @@ export default function Home() {
       if (!res.ok) throw new Error("Upload failed");
       const json = await res.json();
       setQrUrl(json.url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(err);
+      setCaptureError(msg);
     } finally {
       setBusy(false);
     }
@@ -539,10 +546,18 @@ export default function Home() {
             <button className="primary" onClick={startCountdown} disabled={busy || count !== null}>
               {busy ? "處理中…" : "拍照（固定倒數 3 秒）"}
             </button>
+            <button onClick={doCapture} disabled={busy || count !== null}>
+              立即拍照
+            </button>
             <button onClick={() => { setResultUrl(null); setQrUrl(null); setResultBlob(null); }} disabled={busy}>
               重新拍照（清空結果）
             </button>
           </div>
+          {captureError ? (
+            <div className="muted" style={{ color: "#f59e0b" }}>
+              拍照失敗：{captureError}
+            </div>
+          ) : null}
 
           {capMeta && (
             <div className="muted" style={{ marginTop: 8 }}>
