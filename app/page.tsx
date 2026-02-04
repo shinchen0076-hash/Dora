@@ -55,6 +55,8 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"webgl" | "video">("webgl");
+  const [camError, setCamError] = useState<string | null>(null);
+  const [webglError, setWebglError] = useState<string | null>(null);
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
@@ -134,10 +136,13 @@ export default function Home() {
     try {
       rendererRef.current = new BeautyRenderer(c, 720, 960);
       setPreviewMode("webgl");
+      setWebglError(null);
     } catch (e) {
       console.error(e);
       rendererRef.current = null;
       setPreviewMode("video");
+      const msg = e instanceof Error ? e.message : String(e);
+      setWebglError(msg);
     }
     return () => { rendererRef.current = null; };
   }, []);
@@ -179,6 +184,7 @@ export default function Home() {
 
   async function startCamera(face: "user" | "environment") {
     stopCamera();
+    setCamError(null);
     setQrUrl(null);
     setResultUrl(null);
     setResultBlob(null);
@@ -187,16 +193,41 @@ export default function Home() {
       video: {
         facingMode: { ideal: face },
         width: { ideal: 3840 },
-        height: { ideal: 2160 }
+        height: { ideal: 2160 },
+        frameRate: { ideal: 30 }
       },
       audio: false
     };
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setCamError(msg);
+      throw e;
+    }
     streamRef.current = stream;
 
     const track = stream.getVideoTracks()[0];
     trackRef.current = track;
+    try {
+      const caps = (track as MediaStreamTrack).getCapabilities?.();
+      if (caps && (caps.width || caps.height)) {
+        const maxW = typeof caps.width === "object" ? caps.width.max : undefined;
+        const maxH = typeof caps.height === "object" ? caps.height.max : undefined;
+        const maxFps = typeof caps.frameRate === "object" ? caps.frameRate.max : undefined;
+        await track.applyConstraints({
+          advanced: [{
+            width: maxW ?? undefined,
+            height: maxH ?? undefined,
+            frameRate: maxFps ?? undefined
+          }]
+        });
+      }
+    } catch (e) {
+      console.warn("applyConstraints failed", e);
+    }
 
     const video = videoRef.current!;
     video.srcObject = stream;
@@ -528,6 +559,17 @@ export default function Home() {
             <button onClick={toggleFacing}>切換前/後鏡頭</button>
           </div>
 
+          {previewMode === "video" ? (
+            <div className="muted" style={{ color: "#f59e0b" }}>
+              美顏需要 WebGL2。若看不到美顏效果，請確認 Chrome 已開啟硬體加速（設定 → 系統 → 使用硬體加速）。
+              {webglError ? <div>WebGL 錯誤：{webglError}</div> : null}
+            </div>
+          ) : null}
+          {camError ? (
+            <div className="muted" style={{ color: "#f59e0b" }}>
+              鏡頭啟動失敗：{camError}
+            </div>
+          ) : null}
           <div className="previewWrap">
             <video
               ref={videoRef}
@@ -535,7 +577,7 @@ export default function Home() {
               playsInline
               muted
             />
-            <canvas ref={previewCanvasRef} className="previewCanvas" />
+            <canvas ref={previewCanvasRef} className={"previewCanvas" + (previewMode === "webgl" ? " show" : "")} />
             {selectedFrame ? (
               <img className="frameOverlay" src={selectedFrame.url} alt="frame" />
             ) : null}

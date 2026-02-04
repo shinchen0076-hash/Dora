@@ -13,7 +13,13 @@ export async function POST(req: Request) {
   cleanupExpired();
   ensureUploadDir();
 
-  const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const origin =
+    req.headers.get("origin") ??
+    (host ? `${proto}://${host}` : undefined) ??
+    process.env.NEXT_PUBLIC_BASE_URL ??
+    "http://localhost:3000";
 
   const fd = await req.formData();
   const file = fd.get("file");
