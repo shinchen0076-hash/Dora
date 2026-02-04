@@ -1,5 +1,4 @@
-﻿import { VERT, FRAG } from "./shaders";
-import { VERT, FRAG, VERT_WGL1, FRAG_WGL1 } from "./shaders";
+﻿import { VERT, FRAG, VERT_WGL1, FRAG_WGL1 } from "./shaders";
 import type { BeautyParams, FaceMask } from "./types";
 
 type GL = WebGL2RenderingContext | WebGLRenderingContext;
@@ -141,4 +140,5 @@ export class BeautyRenderer {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 }
+
 
