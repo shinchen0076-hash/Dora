@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import FrameManager, { type FrameItem } from "../components/FrameManager";
 import BeautyControls from "../components/BeautyControls";
 import QrPanel from "../components/QrPanel";
