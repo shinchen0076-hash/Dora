@@ -36,6 +36,8 @@ type CaptureMeta = {
   note?: string;
 };
 
+type CaptureSource = CanvasImageSource;
+
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -71,6 +73,49 @@ export default function Home() {
   const lastLmTsRef = useRef<number>(0);
 
   const selectedFrame = useMemo(() => frames.find(f => f.id === selectedFrameId) ?? null, [frames, selectedFrameId]);
+
+  function ensureMask(): FaceMask {
+    let mask = maskRef.current;
+    if (!mask) {
+      const c = document.createElement("canvas");
+      c.width = 256;
+      c.height = 256;
+      mask = { canvas: c, ready: false };
+      maskRef.current = mask;
+    }
+    return mask;
+  }
+
+  async function blobToImageSource(blob: Blob): Promise<CaptureSource> {
+    if ("createImageBitmap" in window) {
+      try {
+        return await createImageBitmap(blob);
+      } catch {
+        // fallback below
+      }
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const url = URL.createObjectURL(blob);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("image load failed"));
+        img.src = url;
+      });
+      return img;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function getSourceSize(src: CaptureSource) {
+    if (src instanceof HTMLVideoElement) return { w: src.videoWidth, h: src.videoHeight };
+    if (src instanceof HTMLImageElement) return { w: src.naturalWidth, h: src.naturalHeight };
+    if (src instanceof HTMLCanvasElement) return { w: src.width, h: src.height };
+    if (src instanceof ImageBitmap) return { w: src.width, h: src.height };
+    return { w: 0, h: 0 };
+  }
 
   // init mask canvas
   useEffect(() => {
@@ -258,11 +303,11 @@ export default function Home() {
     try {
       const track = trackRef.current;
       const video = videoRef.current;
-      const mask = maskRef.current;
-      if (!track || !video || !mask) throw new Error("Camera not ready");
+      if (!track || !video) throw new Error("Camera not ready");
+      const mask = ensureMask();
 
       // 1) 優先使用 ImageCapture.takePhoto（高解析 still）  citeturn5search2
-      let imageBitmap: ImageBitmap;
+      let source: CaptureSource;
       let inputW = 0, inputH = 0;
       let note = "";
 
@@ -271,9 +316,10 @@ export default function Home() {
         try {
           const ic = new ImageCaptureCtor(track);
           const blob: Blob = await ic.takePhoto();
-          imageBitmap = await createImageBitmap(blob);
-          inputW = imageBitmap.width;
-          inputH = imageBitmap.height;
+          source = await blobToImageSource(blob);
+          const size = getSourceSize(source);
+          inputW = size.w;
+          inputH = size.h;
         } catch (e) {
           note = "takePhoto 失敗，改用截取影片畫面（可能較低解析）";
           // fallback: draw from video
@@ -282,9 +328,9 @@ export default function Home() {
           c.height = video.videoHeight;
           const ctx = c.getContext("2d")!;
           ctx.drawImage(video, 0, 0);
-          imageBitmap = await createImageBitmap(c);
-          inputW = imageBitmap.width;
-          inputH = imageBitmap.height;
+          source = c;
+          inputW = c.width;
+          inputH = c.height;
         }
       } else {
         note = "此瀏覽器不支援 ImageCapture.takePhoto，改用截取影片畫面";
@@ -293,9 +339,9 @@ export default function Home() {
         c.height = video.videoHeight;
         const ctx = c.getContext("2d")!;
         ctx.drawImage(video, 0, 0);
-        imageBitmap = await createImageBitmap(c);
-        inputW = imageBitmap.width;
-        inputH = imageBitmap.height;
+        source = c;
+        inputW = c.width;
+        inputH = c.height;
       }
 
       // 2) 3:4 置中裁切（預覽與輸出一致）
@@ -320,7 +366,7 @@ export default function Home() {
           // （詳見 FaceLandmarker API：detect / detectForVideo） citeturn7view0
           const anyLm: any = landmarkerRef.current as any;
           if (typeof anyLm.detect === "function") {
-            const r = anyLm.detect(imageBitmap);
+            const r = anyLm.detect(source as any);
             lmPts = r?.faceLandmarks?.[0] ?? null;
           } else {
             lmPts = (lastLmRef.current as any)?.faceLandmarks?.[0] ?? null;
@@ -355,7 +401,7 @@ export default function Home() {
 
       if (exportRenderer) {
         exportRenderer.render(
-          imageBitmap,
+          source as TexImageSource,
           { w: inputW, h: inputH },
           srcRectNorm,
           { mode, intensity01: intensity / 100 },
@@ -364,7 +410,7 @@ export default function Home() {
       } else {
         // 無 WebGL → 降級為 2D 只做裁切輸出（仍可合成邊框）
         const ctx = exportCanvas.getContext("2d")!;
-        drawCroppedTo2D(ctx, imageBitmap, crop, outW, outH);
+        drawCroppedTo2D(ctx, source, crop, outW, outH);
       }
 
       // 6) 合成邊框（2D canvas 疊 PNG）
@@ -466,6 +512,9 @@ export default function Home() {
 
           <div className="previewWrap">
             <canvas ref={previewCanvasRef} className="previewCanvas" />
+            {selectedFrame ? (
+              <img className="frameOverlay" src={selectedFrame.url} alt="frame" />
+            ) : null}
             <div className="frameOverlayGuide" />
             {count !== null && (
               <div className="countdownOverlay">

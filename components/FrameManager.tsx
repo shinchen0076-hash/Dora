@@ -83,7 +83,7 @@ export default function FrameManager({
 
       <input
         type="file"
-        accept="image/png"
+        accept="image/png,image/jpeg"
         multiple
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
