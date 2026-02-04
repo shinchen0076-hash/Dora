@@ -57,6 +57,7 @@ export default function Home() {
   const [previewMode, setPreviewMode] = useState<"webgl" | "video">("webgl");
   const [camError, setCamError] = useState<string | null>(null);
   const [webglError, setWebglError] = useState<string | null>(null);
+  const [hiRes, setHiRes] = useState(true);
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
@@ -180,7 +181,7 @@ export default function Home() {
     startCamera(facing);
     return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facing]);
+  }, [facing, hiRes]);
 
   async function startCamera(face: "user" | "environment") {
     stopCamera();
@@ -192,9 +193,10 @@ export default function Home() {
     const constraints: MediaStreamConstraints = {
       video: {
         facingMode: { ideal: face },
-        width: { ideal: 3840 },
-        height: { ideal: 2160 },
-        frameRate: { ideal: 30 }
+        width: { ideal: hiRes ? 3840 : 1920 },
+        height: { ideal: hiRes ? 2160 : 1080 },
+        frameRate: { ideal: 30 },
+        aspectRatio: { ideal: 3 / 4 }
       },
       audio: false
     };
@@ -219,8 +221,9 @@ export default function Home() {
         const maxFps = typeof caps.frameRate === "object" ? caps.frameRate.max : undefined;
         await track.applyConstraints({
           advanced: [{
-            width: maxW ?? undefined,
-            height: maxH ?? undefined,
+            width: hiRes ? (maxW ?? undefined) : undefined,
+            height: hiRes ? (maxH ?? undefined) : undefined,
+            aspectRatio: 3 / 4,
             frameRate: maxFps ?? undefined
           }]
         });
@@ -557,6 +560,12 @@ export default function Home() {
               <span className="badge ok">目標輸出：{DESIRED_W}×{DESIRED_H}（3:4）</span>
             </div>
             <button onClick={toggleFacing}>切換前/後鏡頭</button>
+          </div>
+          <div className="row">
+            <span className="badge">預覽模式：{previewMode === "webgl" ? "WebGL（美顏）" : "Video（無美顏）"}</span>
+            <button onClick={() => setHiRes(v => !v)}>
+              {hiRes ? "高解析度：開" : "高解析度：關"}
+            </button>
           </div>
 
           {previewMode === "video" ? (
