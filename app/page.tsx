@@ -6,6 +6,7 @@ import BeautyControls from "../components/BeautyControls";
 import QrPanel from "../components/QrPanel";
 import { BeautyRenderer } from "../lib/beauty/BeautyRenderer";
 import type { BeautyMode, FaceMask } from "../lib/beauty/types";
+import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 
 import { buildFaceMask } from "@/lib/beauty/mask";
 import { computeCoverCrop, chooseExportSizeNoUpscale, drawCroppedTo2D } from "@/lib/image";
