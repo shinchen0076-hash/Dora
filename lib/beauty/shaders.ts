@@ -72,9 +72,9 @@ vec3 bilateral(vec2 uv, float faceMask){
     }
   }
 
-  vec3 smooth = sum / max(wsum, 1e-6);
+  vec3 sm = sum / max(wsum, 1e-6);
   // 只在 faceMask 範圍內混合，避免整張變糊
-  return mix(center, smooth, faceMask);
+  return mix(center, sm, faceMask);
 }
 
 vec3 brighten(vec3 c, float faceMask){
