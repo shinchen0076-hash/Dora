@@ -181,7 +181,7 @@ let cancelled = false;
       landmarkerRef.current = lm as any;
       setLandmarkerReady(true);
     } catch (err) {
-      console.warn("FaceLandmarker 頛憭望?嚗??⊿?蝝??∟???mask嚗?, err);
+      console.warn("FaceLandmarker init failed; running without face mask", err);
       setLandmarkerReady(false);
     }
   })();
