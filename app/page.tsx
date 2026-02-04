@@ -411,7 +411,7 @@ let raf = 0;
           inputW = size.w;
           inputH = size.h;
         } catch (e) {
-          note = "takePhoto 憭望?嚗?冽?蔣??ｇ??航頛?閫??嚗?;
+          note = "takePhoto failed; fallback to video frame capture.";
           // fallback: draw from video
           const c = document.createElement("canvas");
           c.width = video.videoWidth;
@@ -423,7 +423,7 @@ let raf = 0;
           inputH = c.height;
         }
       } else {
-        note = "甇斤汗?其??舀 ImageCapture.takePhoto嚗?冽?蔣???;
+        note = "ImageCapture.takePhoto is not supported; fallback to video frame capture.";
         const c = document.createElement("canvas");
         c.width = video.videoWidth;
         c.height = video.videoHeight;
@@ -442,7 +442,7 @@ let raf = 0;
       const finalNote =
         note +
         (downgraded
-          ? "嚚迨鋆蔭/璅∪??桀??⊥???頞喳???閫??摨行??2160?2880 ?祕蝝啁?嚗歇?芸?撠撓?粹??唳餈撓?亥圾?漲嚗???3:4嚗?
+          ? "Output was downscaled because the input resolution is lower than 2160x2880. The aspect ratio is kept at 3:4."
           : "");
 
       setCapMeta({ inputW, inputH, exportW: outW, exportH: outH, downgraded, note: finalNote });
@@ -465,7 +465,8 @@ let raf = 0;
         }
       }
 
-      // 5) export ??WebGL renderer嚗??汗??shader嚗?      const exportCanvas = document.createElement("canvas");
+      // 5) export with WebGL renderer (same shader as preview)
+      const exportCanvas = document.createElement("canvas");
       exportCanvas.width = outW;
       exportCanvas.height = outH;
       exportCanvasRef.current = exportCanvas;
