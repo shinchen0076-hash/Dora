@@ -37,6 +37,7 @@ type CaptureMeta = {
 };
 
 type CaptureSource = CanvasImageSource;
+type ResOption = { label: string; w: number; h: number };
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -58,6 +59,8 @@ export default function Home() {
   const [camError, setCamError] = useState<string | null>(null);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [hiRes, setHiRes] = useState(true);
+  const [resOptions, setResOptions] = useState<ResOption[]>([]);
+  const [selectedRes, setSelectedRes] = useState<string>("auto");
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
@@ -181,7 +184,7 @@ export default function Home() {
     startCamera(facing);
     return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facing, hiRes]);
+  }, [facing, hiRes, selectedRes]);
 
   async function startCamera(face: "user" | "environment") {
     stopCamera();
@@ -219,10 +222,35 @@ export default function Home() {
         const maxW = typeof caps.width === "object" ? caps.width.max : undefined;
         const maxH = typeof caps.height === "object" ? caps.height.max : undefined;
         const maxFps = typeof caps.frameRate === "object" ? caps.frameRate.max : undefined;
+        const candidates: Array<[number, number]> = [
+          [maxW ?? 0, maxH ?? 0],
+          [2560, 1920],
+          [1920, 1440],
+          [1600, 1200],
+          [1280, 960],
+          [1280, 720],
+          [960, 720]
+        ];
+        const uniq = new Map<string, ResOption>();
+        for (const [w, h] of candidates) {
+          if (!w || !h) continue;
+          if (maxW && w > maxW) continue;
+          if (maxH && h > maxH) continue;
+          const key = `${w}x${h}`;
+          uniq.set(key, { label: `${w}×${h}`, w, h });
+        }
+        const opts = Array.from(uniq.values());
+        setResOptions(opts);
+        if (selectedRes === "auto" && opts[0]) {
+          setSelectedRes(`${opts[0].w}x${opts[0].h}`);
+        }
+        const picked = selectedRes !== "auto"
+          ? opts.find(o => `${o.w}x${o.h}` === selectedRes)
+          : undefined;
         await track.applyConstraints({
           advanced: [{
-            width: hiRes ? (maxW ?? undefined) : undefined,
-            height: hiRes ? (maxH ?? undefined) : undefined,
+            width: picked?.w ?? (hiRes ? (maxW ?? undefined) : undefined),
+            height: picked?.h ?? (hiRes ? (maxH ?? undefined) : undefined),
             aspectRatio: 3 / 4,
             frameRate: maxFps ?? undefined
           }]
@@ -579,6 +607,22 @@ export default function Home() {
               鏡頭啟動失敗：{camError}
             </div>
           ) : null}
+          <div className="row">
+            <span className="badge">Preview: {previewMode === "webgl" ? "WebGL (beauty)" : "Video (no beauty)"}</span>
+            <button onClick={() => setHiRes(v => !v)}>
+              {hiRes ? "Hi-Res: On" : "Hi-Res: Off"}
+            </button>
+            <select
+              value={selectedRes}
+              onChange={(e) => setSelectedRes(e.target.value)}
+              style={{ background: "#1a2040", color: "white", borderRadius: 8, padding: "6px 8px", border: "1px solid #2a3352" }}
+            >
+              <option value="auto">Resolution: Auto</option>
+              {resOptions.map(o => (
+                <option key={o.label} value={`${o.w}x${o.h}`}>{o.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="previewWrap">
             <video
               ref={videoRef}
