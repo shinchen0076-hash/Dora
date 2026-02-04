@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import FrameManager, { type FrameItem } from "../components/FrameManager";
@@ -13,8 +13,8 @@ import { computeCoverCrop, chooseExportSizeNoUpscale, drawCroppedTo2D } from "@/
 
 const DESIRED_W = 2160;
 const DESIRED_H = 2880;
-
-// MediaPipe model / wasm（可自行改成本機檔案以提高穩定性）
+const USE_FACE_LANDMARKS = false;
+// MediaPipe model / wasm嚗?芾??寞??祆?瑼?隞交?擃帘摰改?
 const WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
@@ -127,7 +127,11 @@ export default function Home() {
 
   // init mask canvas
   useEffect(() => {
-    const c = document.createElement("canvas");
+  if (!USE_FACE_LANDMARKS) {
+    setLandmarkerReady(false);
+    return;
+  }
+const c = document.createElement("canvas");
     c.width = 256;
     c.height = 256;
     maskRef.current = { canvas: c, ready: false };
@@ -135,7 +139,11 @@ export default function Home() {
 
   // init preview renderer
   useEffect(() => {
-    const c = previewCanvasRef.current;
+  if (!USE_FACE_LANDMARKS) {
+    setLandmarkerReady(false);
+    return;
+  }
+const c = previewCanvasRef.current;
     if (!c) return;
     try {
       rendererRef.current = new BeautyRenderer(c, 720, 960);
@@ -151,14 +159,17 @@ export default function Home() {
     return () => { rendererRef.current = null; };
   }, []);
 
-  // load MediaPipe FaceLandmarker (可失敗：需降級)
+  // load MediaPipe FaceLandmarker (?臬仃?????)
   useEffect(() => {
-  let cancelled = false;
+  if (!USE_FACE_LANDMARKS) {
+    setLandmarkerReady(false);
+    return;
+  }
+let cancelled = false;
 
   (async () => {
     try {
-      const mp = await import("@mediapipe/tasks-vision"); // ✅ 動態載入，避免 SSR 崩
-
+      const mp = await import("@mediapipe/tasks-vision"); // ????頛嚗??SSR 撏?
       const vision = await mp.FilesetResolver.forVisionTasks(WASM_BASE);
       const lm = await mp.FaceLandmarker.createFromOptions(vision, {
         baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
@@ -170,7 +181,7 @@ export default function Home() {
       landmarkerRef.current = lm as any;
       setLandmarkerReady(true);
     } catch (err) {
-      console.warn("FaceLandmarker 載入失敗，將採降級（無臉部 mask）", err);
+      console.warn("FaceLandmarker 頛憭望?嚗??⊿?蝝??∟???mask嚗?, err);
       setLandmarkerReady(false);
     }
   })();
@@ -181,7 +192,11 @@ export default function Home() {
 
   // camera start
   useEffect(() => {
-    startCamera(facing);
+  if (!USE_FACE_LANDMARKS) {
+    setLandmarkerReady(false);
+    return;
+  }
+startCamera(facing);
     return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facing, hiRes, selectedRes]);
@@ -237,7 +252,7 @@ export default function Home() {
           if (maxW && w > maxW) continue;
           if (maxH && h > maxH) continue;
           const key = `${w}x${h}`;
-          uniq.set(key, { label: `${w}×${h}`, w, h });
+          uniq.set(key, { label: `${w}?${h}`, w, h });
         }
         const opts = Array.from(uniq.values());
         setResOptions(opts);
@@ -264,7 +279,7 @@ export default function Home() {
     video.srcObject = stream;
     await video.play();
 
-    // 等 metadata
+    // 蝑?metadata
     await new Promise<void>((r) => {
       if (video.readyState >= 2) return r();
       video.onloadedmetadata = () => r();
@@ -295,7 +310,11 @@ export default function Home() {
 
   // preview render loop
   useEffect(() => {
-    let raf = 0;
+  if (!USE_FACE_LANDMARKS) {
+    setLandmarkerReady(false);
+    return;
+  }
+let raf = 0;
     const video = videoRef.current;
     const renderer = rendererRef.current;
 
@@ -304,9 +323,9 @@ export default function Home() {
     function tick() {
       const mask = maskRef.current;
       if (video && renderer && mask && video.videoWidth > 0 && video.videoHeight > 0) {
-        // 每 5 幀做一次 landmarker（降低負擔）
+        // 瘥?5 撟??甈?landmarker嚗?雿???
         const now = performance.now();
-        if (landmarkerRef.current && landmarkerReady && now - lastLmTsRef.current > 80) {
+        if (USE_FACE_LANDMARKS && landmarkerRef.current && landmarkerReady && now - lastLmTsRef.current > 80) {
           try {
             const res = landmarkerRef.current.detectForVideo(video, now);
             lastLmRef.current = res;
@@ -316,8 +335,8 @@ export default function Home() {
           }
         }
 
-        const lm = (lastLmRef.current as any)?.faceLandmarks?.[0] ?? null;
-        buildFaceMask(mask, lm as any, { eyeBoost: true });
+        const lm = USE_FACE_LANDMARKS ? ((lastLmRef.current as any)?.faceLandmarks?.[0] ?? null) : null;
+        buildFaceMask(mask, lm as any, { eyeBoost: USE_FACE_LANDMARKS });
 
         const crop = computeCoverCrop(video.videoWidth, video.videoHeight, 3, 4);
         // normalized source rect for shader
@@ -378,8 +397,7 @@ export default function Home() {
       if (!track || !video) throw new Error("Camera not ready");
       const mask = ensureMask();
 
-      // 1) 優先使用 ImageCapture.takePhoto（高解析 still）  citeturn5search2
-      let source: CaptureSource;
+      // 1) ?芸?雿輻 ImageCapture.takePhoto嚗?閫?? still嚗? ?cite?urn5search2??      let source: CaptureSource;
       let inputW = 0, inputH = 0;
       let note = "";
 
@@ -393,7 +411,7 @@ export default function Home() {
           inputW = size.w;
           inputH = size.h;
         } catch (e) {
-          note = "takePhoto 失敗，改用截取影片畫面（可能較低解析）";
+          note = "takePhoto 憭望?嚗?冽?蔣??ｇ??航頛?閫??嚗?;
           // fallback: draw from video
           const c = document.createElement("canvas");
           c.width = video.videoWidth;
@@ -405,7 +423,7 @@ export default function Home() {
           inputH = c.height;
         }
       } else {
-        note = "此瀏覽器不支援 ImageCapture.takePhoto，改用截取影片畫面";
+        note = "甇斤汗?其??舀 ImageCapture.takePhoto嚗?冽?蔣???;
         const c = document.createElement("canvas");
         c.width = video.videoWidth;
         c.height = video.videoHeight;
@@ -416,27 +434,26 @@ export default function Home() {
         inputH = c.height;
       }
 
-      // 2) 3:4 置中裁切（預覽與輸出一致）
+      // 2) 3:4 蝵桐葉鋆?嚗?閬質?頛詨銝?湛?
       const crop = computeCoverCrop(inputW, inputH, 3, 4);
 
-      // 3) 畫質優先：禁止低解析硬放大 → 若 crop 不足 2160×2880，則自動降級輸出尺寸
+      // 3) ?怨釭?芸?嚗?甇Ｖ?閫??蝖祆憭?????crop 銝雲 2160?2880嚗??芸???頛詨撠箏站
       const { outW, outH, downgraded } = chooseExportSizeNoUpscale(crop.sw, crop.sh, DESIRED_W, DESIRED_H);
       const finalNote =
         note +
         (downgraded
-          ? "｜此裝置/模式目前無法提供足夠原始解析度支撐 2160×2880 真實細節，已自動將輸出降到接近輸入解析度（仍為 3:4）。"
+          ? "嚚迨鋆蔭/璅∪??桀??⊥???頞喳???閫??摨行??2160?2880 ?祕蝝啁?嚗歇?芸?撠撓?粹??唳餈撓?亥圾?漲嚗???3:4嚗?
           : "");
 
       setCapMeta({ inputW, inputH, exportW: outW, exportH: outH, downgraded, note: finalNote });
 
-      // 4) 取得 landmarks（優先用 still 重新偵測，使輸出更一致）
+      // 4) ?? landmarks嚗? still ??菜葫嚗蝙頛詨?港??湛?
       let lmPts: any = null;
-      if (landmarkerRef.current && landmarkerReady) {
+      if (USE_FACE_LANDMARKS && landmarkerRef.current && landmarkerReady) {
         try {
-          // runningMode=VIDEO 仍可用 detect() 做單張（API 支援 image mode 才能 detect）；此處用降級策略：
-          // 若 detect 不可用 → 退回最後一幀 landmarks
-          // （詳見 FaceLandmarker API：detect / detectForVideo） citeturn7view0
-          const anyLm: any = landmarkerRef.current as any;
+          // runningMode=VIDEO 隞??detect() ?撘蛛?API ?舀 image mode ? detect嚗?甇方??券?蝝??伐?
+          // ??detect 銝???????敺?撟 landmarks
+          // 嚗底閬?FaceLandmarker API嚗etect / detectForVideo嚗??cite?urn7view0??          const anyLm: any = landmarkerRef.current as any;
           if (typeof anyLm.detect === "function") {
             const r = anyLm.detect(source as any);
             lmPts = r?.faceLandmarks?.[0] ?? null;
@@ -448,8 +465,7 @@ export default function Home() {
         }
       }
 
-      // 5) export 用 WebGL renderer（與預覽同 shader）
-      const exportCanvas = document.createElement("canvas");
+      // 5) export ??WebGL renderer嚗??汗??shader嚗?      const exportCanvas = document.createElement("canvas");
       exportCanvas.width = outW;
       exportCanvas.height = outH;
       exportCanvasRef.current = exportCanvas;
@@ -461,8 +477,8 @@ export default function Home() {
         exportRenderer = null;
       }
 
-      // mask canvas 仍用 256×256，但 landmarks 是 normalized；不需知道 outW/outH
-      buildFaceMask(mask, lmPts as any, { eyeBoost: true });
+      // mask canvas 隞 256?256嚗? landmarks ??normalized嚗???仿? outW/outH
+      buildFaceMask(mask, USE_FACE_LANDMARKS ? (lmPts as any) : null, { eyeBoost: USE_FACE_LANDMARKS });
 
       const srcRectNorm = {
         x: crop.sx / inputW,
@@ -480,13 +496,12 @@ export default function Home() {
           mask
         );
       } else {
-        // 無 WebGL → 降級為 2D 只做裁切輸出（仍可合成邊框）
+        // ??WebGL ??????2D ?芸?鋆?頛詨嚗??臬???獢?
         const ctx = exportCanvas.getContext("2d")!;
         drawCroppedTo2D(ctx, source, crop, outW, outH);
       }
 
-      // 6) 合成邊框（2D canvas 疊 PNG）
-      let finalCanvas: HTMLCanvasElement = exportCanvas;
+      // 6) ????嚗?D canvas ??PNG嚗?      let finalCanvas: HTMLCanvasElement = exportCanvas;
       if (selectedFrame) {
         const composite = document.createElement("canvas");
         composite.width = outW;
@@ -497,16 +512,14 @@ export default function Home() {
           try { (ctx2 as any).imageSmoothingQuality = "high"; } catch {}
           ctx2.drawImage(exportCanvas, 0, 0);
           const frameImg = await loadImage(selectedFrame.url);
-          // 邊框縮放置中覆蓋到輸出大小
-          ctx2.drawImage(frameImg, 0, 0, outW, outH);
+          // ??蝮格蝵桐葉閬??啗撓?箏之撠?          ctx2.drawImage(frameImg, 0, 0, outW, outH);
           finalCanvas = composite;
         } else {
           console.warn("2D canvas context unavailable; skip frame composite");
         }
       }
 
-      // 7) 匯出 Blob（避免 toDataURL 再轉回 Blob；直接 toBlob） citeturn5search7
-      const blob: Blob = await new Promise((resolve, reject) => {
+      // 7) ?臬 Blob嚗??toDataURL ????Blob嚗??toBlob嚗??cite?urn5search7??      const blob: Blob = await new Promise((resolve, reject) => {
         finalCanvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
           "image/jpeg",
@@ -518,7 +531,7 @@ export default function Home() {
       const obj = URL.createObjectURL(blob);
       setResultUrl(obj);
 
-      // 8) 上傳 → 回 token + url → 產 QR
+      // 8) 銝 ????token + url ????QR
       const fd = new FormData();
       fd.append("file", new File([blob], "photo.jpg", { type: "image/jpeg" }));
       fd.append("meta", JSON.stringify({ inputW, inputH, exportW: outW, exportH: outH }));
@@ -556,19 +569,19 @@ export default function Home() {
   return (
     <div className="col" style={{ gap: 14 }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h1>線上拍貼（TypeScript / Next.js）</h1>
+        <h1>蝺??票嚗ypeScript / Next.js嚗?/h1>
         <div className="row">
           {landmarkerReady ? (
-            <span className="badge ok">FaceLandmarker：已啟用（臉部 mask）</span>
+            <span className="badge ok">FaceLandmarker嚗歇?嚗???mask嚗?/span>
           ) : (
-            <span className="badge warn">FaceLandmarker：未啟用（降級模式）</span>
+            <span className="badge warn">FaceLandmarker嚗?嚗?蝝芋撘?</span>
           )}
         </div>
       </div>
 
       <div className="grid">
         <div className="card">
-          <h2>A. 邊框（Frame）上傳與選擇</h2>
+          <h2>A. ??嚗rame嚗??唾??豢?</h2>
           <FrameManager
             frames={frames}
             selectedId={selectedFrameId}
@@ -578,33 +591,32 @@ export default function Home() {
         </div>
 
         <div className="card">
-          <h2>B. 相機預覽（3:4 取景） + D. 美顏</h2>
+          <h2>B. ?豢??汗嚗?:4 ?嚗?+ D. 蝢?</h2>
 
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
             <div className="row">
-              <span className="badge">鏡頭：{camInfo?.facing ?? facing}</span>
-              <span className="badge">輸入（track settings）：{camInfo?.trackW ?? 0}×{camInfo?.trackH ?? 0}</span>
-              <span className="badge">輸入（video）：{camInfo?.videoW ?? 0}×{camInfo?.videoH ?? 0}</span>
-              <span className="badge ok">目標輸出：{DESIRED_W}×{DESIRED_H}（3:4）</span>
+              <span className="badge">?⊿嚗camInfo?.facing ?? facing}</span>
+              <span className="badge">頛詨嚗rack settings嚗?{camInfo?.trackW ?? 0}?{camInfo?.trackH ?? 0}</span>
+              <span className="badge">頛詨嚗ideo嚗?{camInfo?.videoW ?? 0}?{camInfo?.videoH ?? 0}</span>
+              <span className="badge ok">?格?頛詨嚗DESIRED_W}?{DESIRED_H}嚗?:4嚗?/span>
             </div>
-            <button onClick={toggleFacing}>切換前/後鏡頭</button>
+            <button onClick={toggleFacing}>????敺??/button>
           </div>
           <div className="row">
-            <span className="badge">預覽模式：{previewMode === "webgl" ? "WebGL（美顏）" : "Video（無美顏）"}</span>
+            <span className="badge">?汗璅∪?嚗previewMode === "webgl" ? "WebGL嚗?憿?" : "Video嚗蝢?嚗?}</span>
             <button onClick={() => setHiRes(v => !v)}>
-              {hiRes ? "高解析度：開" : "高解析度：關"}
+              {hiRes ? "擃圾?漲嚗?" : "擃圾?漲嚗?"}
             </button>
           </div>
 
           {previewMode === "video" ? (
             <div className="muted" style={{ color: "#f59e0b" }}>
-              美顏需要 WebGL2。若看不到美顏效果，請確認 Chrome 已開啟硬體加速（設定 → 系統 → 使用硬體加速）。
-              {webglError ? <div>WebGL 錯誤：{webglError}</div> : null}
+              蝢??閬?WebGL2????啁?憿???隢Ⅱ隤?Chrome 撌脤??′擃???閮剖? ??蝟餌絞 ??雿輻蝖祇?????              {webglError ? <div>WebGL ?航炊嚗webglError}</div> : null}
             </div>
           ) : null}
           {camError ? (
             <div className="muted" style={{ color: "#f59e0b" }}>
-              鏡頭啟動失敗：{camError}
+              ?⊿??憭望?嚗camError}
             </div>
           ) : null}
           <div className="row">
@@ -638,9 +650,9 @@ export default function Home() {
             {count !== null && (
               <div className="countdownOverlay">
                 <div className="countNum">{count}</div>
-                <div className="countSub">倒數中…仍維持即時預覽與美顏</div>
+                <div className="countSub">?銝凌虫?蝬剜??單??汗??憿?/div>
                 <div style={{ marginTop: 10 }}>
-                  <button className="danger" onClick={cancelCountdown}>取消</button>
+                  <button className="danger" onClick={cancelCountdown}>??</button>
                 </div>
               </div>
             )}
@@ -654,24 +666,24 @@ export default function Home() {
 
           <div className="row">
             <button className="primary" onClick={startCountdown} disabled={busy || count !== null}>
-              {busy ? "處理中…" : "拍照（固定倒數 3 秒）"}
+              {busy ? "??銝凌? : "?嚗摰 3 蝘?"}
             </button>
             <button onClick={doCapture} disabled={busy || count !== null}>
-              立即拍照
+              蝡?
             </button>
             <button onClick={() => { setResultUrl(null); setQrUrl(null); setResultBlob(null); }} disabled={busy}>
-              重新拍照（清空結果）
+              ??嚗?蝛箇???
             </button>
           </div>
           {captureError ? (
             <div className="muted" style={{ color: "#f59e0b" }}>
-              拍照失敗：{captureError}
+              ?憭望?嚗captureError}
             </div>
           ) : null}
 
           {capMeta && (
             <div className="muted" style={{ marginTop: 8 }}>
-              <div>輸入解析度：{capMeta.inputW}×{capMeta.inputH}｜輸出解析度：{capMeta.exportW}×{capMeta.exportH}</div>
+              <div>頛詨閫??摨佗?{capMeta.inputW}?{capMeta.inputH}嚚撓?箄圾?漲嚗capMeta.exportW}?{capMeta.exportH}</div>
               {capMeta.note ? <div style={{ color: capMeta.downgraded ? "#f59e0b" : "#aab1d6" }}>{capMeta.note}</div> : null}
             </div>
           )}
@@ -679,13 +691,13 @@ export default function Home() {
           {resultUrl && (
             <>
               <div className="hr" />
-              <h2>E. 合成結果</h2>
+              <h2>E. ??蝯?</h2>
               <div className="row" style={{ alignItems: "flex-start" }}>
                 <img className="result" src={resultUrl} alt="result" />
                 <div className="col">
-                  <div className="muted">合成完成（照片 + 邊框）。</div>
+                  <div className="muted">??摰?嚗??+ ??嚗?/div>
                   <div className="row">
-                    <button onClick={downloadLocal}>下載本機</button>
+                    <button onClick={downloadLocal}>銝??祆?</button>
                   </div>
                 </div>
               </div>
@@ -695,7 +707,7 @@ export default function Home() {
           {qrUrl && (
             <>
               <div className="hr" />
-              <h2>F. QR Code（掃描進下載頁）</h2>
+              <h2>F. QR Code嚗??脖?頛?嚗?/h2>
               <QrPanel url={qrUrl} />
             </>
           )}
@@ -703,14 +715,11 @@ export default function Home() {
       </div>
 
       <div className="card">
-        <h2>工程注意事項（你一定要看）</h2>
+        <h2>撌亦?瘜冽?鈭?嚗?銝摰???</h2>
         <div className="muted">
-          1) 相機 API 需要 Secure Context（HTTPS 或 localhost）。citeturn5search0
-          <br />
-          2) 解析度資訊來自 MediaStreamTrack.getSettings() 與 video.videoWidth/videoHeight。citeturn5search1
-          <br />
-          3) 拍照優先使用 ImageCapture.takePhoto 取得較高解析 still；不支援時才退回截取影片畫面。citeturn5search2
-        </div>
+          1) ?豢? API ?閬?Secure Context嚗TTPS ??localhost嚗?cite?urn5search0??          <br />
+          2) 閫??摨西?閮???MediaStreamTrack.getSettings() ??video.videoWidth/videoHeight??cite?urn5search1??          <br />
+          3) ??芸?雿輻 ImageCapture.takePhoto ??頛?閫?? still嚗??舀?????蔣??Ｕ?cite?urn5search2??        </div>
       </div>
     </div>
   );
@@ -726,3 +735,4 @@ async function loadImage(url: string) {
   });
   return img;
 }
+
