@@ -573,19 +573,19 @@ let raf = 0;
   return (
     <div className="col" style={{ gap: 14 }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h1>蝺??票嚗ypeScript / Next.js嚗?/h1>
+        <h1>Online Photobooth (Next.js)</h1>
         <div className="row">
           {landmarkerReady ? (
-            <span className="badge ok">FaceLandmarker嚗歇?嚗???mask嚗?/span>
+            <span className="badge ok">FaceLandmarker: enabled</span>
           ) : (
-            <span className="badge warn">FaceLandmarker嚗?嚗?蝝芋撘?</span>
+            <span className="badge warn">FaceLandmarker: disabled</span>
           )}
         </div>
       </div>
 
       <div className="grid">
         <div className="card">
-          <h2>A. ??嚗rame嚗??唾??豢?</h2>
+          <h2>A. Frame Upload</h2>
           <FrameManager
             frames={frames}
             selectedId={selectedFrameId}
@@ -595,32 +595,33 @@ let raf = 0;
         </div>
 
         <div className="card">
-          <h2>B. ?豢??汗嚗?:4 ?嚗?+ D. 蝢?</h2>
+          <h2>B. Camera & Preview</h2>
 
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
             <div className="row">
-              <span className="badge">?⊿嚗camInfo?.facing ?? facing}</span>
-              <span className="badge">頛詨嚗rack settings嚗?{camInfo?.trackW ?? 0}?{camInfo?.trackH ?? 0}</span>
-              <span className="badge">頛詨嚗ideo嚗?{camInfo?.videoW ?? 0}?{camInfo?.videoH ?? 0}</span>
-              <span className="badge ok">?格?頛詨嚗DESIRED_W}?{DESIRED_H}嚗?:4嚗?/span>
+              <span className="badge">Camera: {camInfo?.facing ?? facing}</span>
+              <span className="badge">Track: {camInfo?.trackW ?? 0}×{camInfo?.trackH ?? 0}</span>
+              <span className="badge">Video: {camInfo?.videoW ?? 0}×{camInfo?.videoH ?? 0}</span>
+              <span className="badge ok">Target: {DESIRED_W}×{DESIRED_H} (3:4)</span>
             </div>
-            <button onClick={toggleFacing}>????敺??/button>
+            <button onClick={toggleFacing}>Switch Camera</button>
           </div>
           <div className="row">
-            <span className="badge">?汗璅∪?嚗previewMode === "webgl" ? "WebGL嚗?憿?" : "Video嚗蝢?嚗?}</span>
+            <span className="badge">Preview: {previewMode === "webgl" ? "WebGL (beauty)" : "Video (no beauty)"}</span>
             <button onClick={() => setHiRes(v => !v)}>
-              {hiRes ? "擃圾?漲嚗?" : "擃圾?漲嚗?"}
+              {hiRes ? "Hi-Res: On" : "Hi-Res: Off"}
             </button>
           </div>
 
           {previewMode === "video" ? (
             <div className="muted" style={{ color: "#f59e0b" }}>
-              蝢??閬?WebGL2????啁?憿???隢Ⅱ隤?Chrome 撌脤??′擃???閮剖? ??蝟餌絞 ??雿輻蝖祇?????              {webglError ? <div>WebGL ?航炊嚗webglError}</div> : null}
+              Beauty requires WebGL. If it is not working, enable Hardware Acceleration in Chrome.
+              {webglError ? <div>WebGL error: {webglError}</div> : null}
             </div>
           ) : null}
           {camError ? (
             <div className="muted" style={{ color: "#f59e0b" }}>
-              ?⊿??憭望?嚗camError}
+              Camera error: {camError}
             </div>
           ) : null}
           <div className="row">
