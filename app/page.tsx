@@ -188,7 +188,7 @@ export default function Home() {
     if (!video || !renderer || !mask) return;
 
     function tick() {
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
+      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
         // 每 5 幀做一次 landmarker（降低負擔）
         const now = performance.now();
         if (landmarkerRef.current && landmarkerReady && now - lastLmTsRef.current > 80) {
