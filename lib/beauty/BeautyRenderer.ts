@@ -1,7 +1,8 @@
-import { VERT, FRAG } from "./shaders";
+﻿import { VERT, FRAG } from "./shaders";
+import { VERT, FRAG, VERT_WGL1, FRAG_WGL1 } from "./shaders";
 import type { BeautyParams, FaceMask } from "./types";
 
-type GL = WebGL2RenderingContext;
+type GL = WebGL2RenderingContext | WebGLRenderingContext;
 
 function compile(gl: GL, type: number, src: string) {
   const s = gl.createShader(type)!;
@@ -33,26 +34,28 @@ export class BeautyRenderer {
   gl: GL;
   program: WebGLProgram;
 
-  vao: WebGLVertexArrayObject;
+  vao: WebGLVertexArrayObject | null;
   tex: WebGLTexture;
   maskTex: WebGLTexture;
 
   loc: Record<string, WebGLUniformLocation>;
+  isWebGL2: boolean;
 
   constructor(canvas: HTMLCanvasElement, width: number, height: number) {
     this.canvas = canvas;
-    const gl = canvas.getContext("webgl2", { premultipliedAlpha: false, antialias: false });
-    if (!gl) throw new Error("此瀏覽器/裝置不支援 WebGL2（美顏即時預覽會降級）。");
+    const gl2 = canvas.getContext("webgl2", { premultipliedAlpha: false, antialias: false });
+    const gl = gl2 ?? canvas.getContext("webgl", { premultipliedAlpha: false, antialias: false });
+    if (!gl) throw new Error("WebGL is not supported");
     this.gl = gl;
-
-    const vs = compile(gl, gl.VERTEX_SHADER, VERT);
-    const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG);
+    this.isWebGL2 = !!gl2;
+    const vs = compile(gl, gl.VERTEX_SHADER, this.isWebGL2 ? VERT : VERT_WGL1);
+    const fs = compile(gl, gl.FRAGMENT_SHADER, this.isWebGL2 ? FRAG : FRAG_WGL1);
     this.program = link(gl, vs, fs);
     gl.deleteShader(vs);
     gl.deleteShader(fs);
 
-    this.vao = gl.createVertexArray()!;
-    gl.bindVertexArray(this.vao);
+    this.vao = this.isWebGL2 ? (gl as WebGL2RenderingContext).createVertexArray()! : null;
+    if (this.vao) (gl as WebGL2RenderingContext).bindVertexArray(this.vao);
     const buf = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -114,7 +117,7 @@ export class BeautyRenderer {
     const gl = this.gl;
 
     gl.useProgram(this.program);
-    gl.bindVertexArray(this.vao);
+    if (this.vao) (gl as WebGL2RenderingContext).bindVertexArray(this.vao);
 
     // source texture
     gl.activeTexture(gl.TEXTURE0);
@@ -138,3 +141,4 @@ export class BeautyRenderer {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 }
+

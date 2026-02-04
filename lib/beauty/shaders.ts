@@ -159,3 +159,150 @@ void main(){
   }
 }
 `;
+
+export const VERT_WGL1 = `
+precision highp float;
+attribute vec2 aPos;
+varying vec2 vUv;
+void main(){
+  vUv = (aPos + 1.0) * 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`;
+
+export const FRAG_WGL1 = `
+precision highp float;
+
+uniform sampler2D uTex;
+uniform sampler2D uMask;  // R: face, G: eyes
+uniform vec2 uTexSize;
+uniform vec4 uSrcRect;    // normalized: x,y,w,h (source crop)
+uniform int uMode;        // 0 smooth,1 brighten,2 tone,3 detail
+uniform float uAmt;       // 0..1
+
+varying vec2 vUv;
+
+vec3 rgb2hsv(vec3 c){
+  vec4 K = vec4(0., -1./3., 2./3., -1.);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  float e = 1e-10;
+  return vec3(abs(q.z + (q.w - q.y) / (6. * d + e)), d / (q.x + e), q.x);
+}
+vec3 hsv2rgb(vec3 c){
+  vec4 K = vec4(1., 2./3., 1./3., 3.);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6. - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0., 1.), c.y);
+}
+
+vec3 sampleSrc(vec2 uv){
+  vec2 suv = uSrcRect.xy + uv * uSrcRect.zw;
+  return texture2D(uTex, suv).rgb;
+}
+float sampleFace(vec2 uv){
+  return texture2D(uMask, uv).r;
+}
+float sampleEye(vec2 uv){
+  return texture2D(uMask, uv).g;
+}
+
+vec3 bilateral(vec2 uv, float faceMask){
+  vec3 center = sampleSrc(uv);
+  float sigmaS = mix(1.0, 3.0, uAmt);
+  float sigmaR = mix(0.06, 0.16, uAmt);
+  vec2 texel = 1.0 / uTexSize;
+
+  vec3 sum = vec3(0.0);
+  float wsum = 0.0;
+
+  for(int y=-1; y<=1; y++){
+    for(int x=-1; x<=1; x++){
+      vec2 o = vec2(float(x), float(y));
+      vec2 u2 = uv + o * texel * sigmaS;
+      vec3 c2 = sampleSrc(u2);
+
+      float ds = dot(o,o);
+      float ws = exp(-ds / (2.0*sigmaS*sigmaS));
+      float dr = length(c2 - center);
+      float wr = exp(-(dr*dr) / (2.0*sigmaR*sigmaR));
+      float w = ws * wr;
+      sum += c2 * w;
+      wsum += w;
+    }
+  }
+
+  vec3 sm = sum / max(wsum, 1e-6);
+  return mix(center, sm, faceMask);
+}
+
+vec3 brighten(vec3 c, float faceMask){
+  float amt = uAmt * faceMask;
+  vec3 lifted = c + amt * (1.0 - c) * 0.18;
+  float g = mix(1.0, 0.88, amt);
+  vec3 gamma = pow(max(lifted, 0.0), vec3(g));
+  vec3 comp = gamma / (gamma + vec3(0.25));
+  return mix(c, comp, amt);
+}
+
+vec3 tone(vec3 c, float faceMask){
+  float amt = uAmt * faceMask;
+  vec3 h = rgb2hsv(c);
+  float target = 0.08;
+  float dh = target - h.x;
+  if (dh > 0.5) dh -= 1.0;
+  if (dh < -0.5) dh += 1.0;
+  h.x = fract(h.x + dh * 0.10 * amt);
+  h.y = clamp(h.y * (1.0 - 0.18 * amt), 0.0, 1.0);
+  vec3 outc = hsv2rgb(h);
+  return mix(c, outc, amt);
+}
+
+vec3 detail(vec2 uv, float faceMask, float eyeMask){
+  vec3 c = sampleSrc(uv);
+  vec2 texel = 1.0 / uTexSize;
+  vec3 blur = (
+    sampleSrc(uv + vec2(-1.0, 0.0) * texel) +
+    sampleSrc(uv + vec2( 1.0, 0.0) * texel) +
+    sampleSrc(uv + vec2(0.0,-1.0) * texel) +
+    sampleSrc(uv + vec2(0.0, 1.0) * texel) +
+    c
+  ) / 5.0;
+
+  vec3 hp = c - blur;
+  float nonSkin = (1.0 - faceMask);
+  float amt = uAmt * nonSkin;
+  float e = length(hp);
+  float t = mix(0.015, 0.035, uAmt);
+  float k = smoothstep(t, t*3.0, e);
+  vec3 hp2 = hp * k;
+
+  vec3 outc = c + hp2 * (0.9 * amt);
+
+  float eyeAmt = uAmt * eyeMask;
+  outc = outc + eyeAmt * vec3(0.06);
+
+  return clamp(outc, 0.0, 1.0);
+}
+
+void main(){
+  vec3 c = sampleSrc(vUv);
+  vec4 m = texture2D(uMask, vUv);
+  float faceM = m.r;
+  float eyeM  = m.g;
+
+  if (uMode == 0){
+    vec3 s = bilateral(vUv, faceM);
+    gl_FragColor = vec4(s, 1.0);
+  } else if (uMode == 1){
+    vec3 b = brighten(c, faceM);
+    gl_FragColor = vec4(b, 1.0);
+  } else if (uMode == 2){
+    vec3 t = tone(c, faceM);
+    gl_FragColor = vec4(t, 1.0);
+  } else {
+    vec3 d = detail(vUv, faceM, eyeM);
+    gl_FragColor = vec4(d, 1.0);
+  }
+}
+`;
