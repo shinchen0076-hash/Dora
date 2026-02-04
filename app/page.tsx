@@ -417,24 +417,28 @@ export default function Home() {
       }
 
       // 6) 合成邊框（2D canvas 疊 PNG）
-      const composite = document.createElement("canvas");
-      composite.width = outW;
-      composite.height = outH;
-      const ctx2 = composite.getContext("2d")!;
-      ctx2.imageSmoothingEnabled = true;
-      try { (ctx2 as any).imageSmoothingQuality = "high"; } catch {}
-
-      ctx2.drawImage(exportCanvas, 0, 0);
-
+      let finalCanvas: HTMLCanvasElement = exportCanvas;
       if (selectedFrame) {
-        const frameImg = await loadImage(selectedFrame.url);
-        // 邊框縮放置中覆蓋到輸出大小
-        ctx2.drawImage(frameImg, 0, 0, outW, outH);
+        const composite = document.createElement("canvas");
+        composite.width = outW;
+        composite.height = outH;
+        const ctx2 = composite.getContext("2d");
+        if (ctx2) {
+          ctx2.imageSmoothingEnabled = true;
+          try { (ctx2 as any).imageSmoothingQuality = "high"; } catch {}
+          ctx2.drawImage(exportCanvas, 0, 0);
+          const frameImg = await loadImage(selectedFrame.url);
+          // 邊框縮放置中覆蓋到輸出大小
+          ctx2.drawImage(frameImg, 0, 0, outW, outH);
+          finalCanvas = composite;
+        } else {
+          console.warn("2D canvas context unavailable; skip frame composite");
+        }
       }
 
       // 7) 匯出 Blob（避免 toDataURL 再轉回 Blob；直接 toBlob） citeturn5search7
       const blob: Blob = await new Promise((resolve, reject) => {
-        composite.toBlob(
+        finalCanvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
           "image/jpeg",
           0.95
