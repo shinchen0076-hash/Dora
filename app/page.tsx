@@ -183,12 +183,12 @@ export default function Home() {
     let raf = 0;
     const video = videoRef.current;
     const renderer = rendererRef.current;
-    const mask = maskRef.current;
 
-    if (!video || !renderer || !mask) return;
+    if (!video || !renderer) return;
 
     function tick() {
-      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+      const mask = maskRef.current;
+      if (video && renderer && mask && video.videoWidth > 0 && video.videoHeight > 0) {
         // 每 5 幀做一次 landmarker（降低負擔）
         const now = performance.now();
         if (landmarkerRef.current && landmarkerReady && now - lastLmTsRef.current > 80) {
