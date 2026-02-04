@@ -54,6 +54,7 @@ export default function Home() {
   const [count, setCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<"webgl" | "video">("webgl");
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
@@ -132,9 +133,11 @@ export default function Home() {
     if (!c) return;
     try {
       rendererRef.current = new BeautyRenderer(c, 720, 960);
+      setPreviewMode("webgl");
     } catch (e) {
       console.error(e);
       rendererRef.current = null;
+      setPreviewMode("video");
     }
     return () => { rendererRef.current = null; };
   }, []);
@@ -216,6 +219,10 @@ export default function Home() {
       facing: face,
       canTakePhoto
     });
+
+    if (!rendererRef.current) {
+      setPreviewMode("video");
+    }
   }
 
   function stopCamera() {
@@ -522,6 +529,12 @@ export default function Home() {
           </div>
 
           <div className="previewWrap">
+            <video
+              ref={videoRef}
+              className={"previewVideo" + (previewMode === "video" ? " show" : "")}
+              playsInline
+              muted
+            />
             <canvas ref={previewCanvasRef} className="previewCanvas" />
             {selectedFrame ? (
               <img className="frameOverlay" src={selectedFrame.url} alt="frame" />
@@ -537,8 +550,6 @@ export default function Home() {
               </div>
             )}
           </div>
-
-          <video ref={videoRef} playsInline muted style={{ display: "none" }} />
 
           <div className="hr" />
 
