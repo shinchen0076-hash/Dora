@@ -502,7 +502,8 @@ let raf = 0;
         drawCroppedTo2D(ctx, source, crop, outW, outH);
       }
 
-      // 6) ????嚗?D canvas ??PNG嚗?      let finalCanvas: HTMLCanvasElement = exportCanvas;
+      // 6) Compose frame on 2D canvas if selected
+      let finalCanvas: HTMLCanvasElement = exportCanvas;
       if (selectedFrame) {
         const composite = document.createElement("canvas");
         composite.width = outW;
@@ -513,14 +514,16 @@ let raf = 0;
           try { (ctx2 as any).imageSmoothingQuality = "high"; } catch {}
           ctx2.drawImage(exportCanvas, 0, 0);
           const frameImg = await loadImage(selectedFrame.url);
-          // ??蝮格蝵桐葉閬??啗撓?箏之撠?          ctx2.drawImage(frameImg, 0, 0, outW, outH);
+          // Overlay frame
+          ctx2.drawImage(frameImg, 0, 0, outW, outH);
           finalCanvas = composite;
         } else {
           console.warn("2D canvas context unavailable; skip frame composite");
         }
       }
 
-      // 7) ?臬 Blob嚗??toDataURL ????Blob嚗??toBlob嚗??cite?urn5search7??      const blob: Blob = await new Promise((resolve, reject) => {
+      // 7) Export blob
+      const blob: Blob = await new Promise((resolve, reject) => {
         finalCanvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
           "image/jpeg",
