@@ -64,6 +64,19 @@ export function buildFaceMask(
     }
   }
 
+  // Feather mask edges to avoid harsh oval boundary
+  const tmp = document.createElement("canvas");
+  tmp.width = W;
+  tmp.height = H;
+  const tctx = tmp.getContext("2d");
+  if (tctx) {
+    tctx.drawImage(c, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.filter = "blur(6px)";
+    ctx.drawImage(tmp, 0, 0);
+    ctx.filter = "none";
+  }
+
   mask.ready = true;
 }
 
