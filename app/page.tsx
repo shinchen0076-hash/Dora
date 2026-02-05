@@ -655,9 +655,9 @@ let raf = 0;
             {count !== null && (
               <div className="countdownOverlay">
                 <div className="countNum">{count}</div>
-                <div className="countSub">?銝凌虫?蝬剜??單??汗??憿?/div>
+                <div className="countSub">Countdown… keep still</div>
                 <div style={{ marginTop: 10 }}>
-                  <button className="danger" onClick={cancelCountdown}>??</button>
+                  <button className="danger" onClick={cancelCountdown}>Cancel</button>
                 </div>
               </div>
             )}
