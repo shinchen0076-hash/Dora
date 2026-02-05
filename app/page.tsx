@@ -712,7 +712,7 @@ let raf = 0;
           {qrUrl && (
             <>
               <div className="hr" />
-              <h2>F. QR Code嚗??脖?頛?嚗?/h2>
+              <h2>F. QR Code</h2>
               <QrPanel url={qrUrl} />
             </>
           )}
@@ -720,11 +720,12 @@ let raf = 0;
       </div>
 
       <div className="card">
-        <h2>撌亦?瘜冽?鈭?嚗?銝摰???</h2>
+        <h2>Notes</h2>
         <div className="muted">
-          1) ?豢? API ?閬?Secure Context嚗TTPS ??localhost嚗?cite?urn5search0??          <br />
-          2) 閫??摨西?閮???MediaStreamTrack.getSettings() ??video.videoWidth/videoHeight??cite?urn5search1??          <br />
-          3) ??芸?雿輻 ImageCapture.takePhoto ??頛?閫?? still嚗??舀?????蔣??Ｕ?cite?urn5search2??        </div>
+          1) Camera APIs require a secure context (HTTPS or localhost).<br />
+          2) Resolution info comes from MediaStreamTrack.getSettings() and video.videoWidth/videoHeight.<br />
+          3) If ImageCapture.takePhoto is supported, it is used for higher-quality stills.
+        </div>
       </div>
     </div>
   );
