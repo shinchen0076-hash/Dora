@@ -453,8 +453,8 @@ let raf = 0;
       if (USE_FACE_LANDMARKS && landmarkerRef.current && landmarkerReady) {
         try {
           // runningMode=VIDEO 隞??detect() ?撘蛛?API ?舀 image mode ? detect嚗?甇方??券?蝝??伐?
-          // ??detect 銝???????敺?撟 landmarks
-          // 嚗底閬?FaceLandmarker API嚗etect / detectForVideo嚗??cite?urn7view0??          const anyLm: any = landmarkerRef.current as any;
+          // Detect landmarks on still frame if supported; fallback to last video landmarks
+          const anyLm: any = landmarkerRef.current as any;
           if (typeof anyLm.detect === "function") {
             const r = anyLm.detect(source as any);
             lmPts = r?.faceLandmarks?.[0] ?? null;
