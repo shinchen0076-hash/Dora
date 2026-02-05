@@ -397,7 +397,8 @@ let raf = 0;
       if (!track || !video) throw new Error("Camera not ready");
       const mask = ensureMask();
 
-      // 1) ?芸?雿輻 ImageCapture.takePhoto嚗?閫?? still嚗? ?cite?urn5search2??      let source: CaptureSource;
+      // 1) Try ImageCapture.takePhoto for higher-quality stills
+      let source: CaptureSource;
       let inputW = 0, inputH = 0;
       let note = "";
 
