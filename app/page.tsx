@@ -671,24 +671,24 @@ let raf = 0;
 
           <div className="row">
             <button className="primary" onClick={startCountdown} disabled={busy || count !== null}>
-              {busy ? "??銝凌? : "?嚗摰 3 蝘?"}
+              {busy ? "Processing…" : "Take Photo (3s countdown)"}
             </button>
             <button onClick={doCapture} disabled={busy || count !== null}>
-              蝡?
+              Take Photo Now
             </button>
             <button onClick={() => { setResultUrl(null); setQrUrl(null); setResultBlob(null); }} disabled={busy}>
-              ??嚗?蝛箇???
+              Clear Result
             </button>
           </div>
           {captureError ? (
             <div className="muted" style={{ color: "#f59e0b" }}>
-              ?憭望?嚗captureError}
+              Capture failed: {captureError}
             </div>
           ) : null}
 
           {capMeta && (
             <div className="muted" style={{ marginTop: 8 }}>
-              <div>頛詨閫??摨佗?{capMeta.inputW}?{capMeta.inputH}嚚撓?箄圾?漲嚗capMeta.exportW}?{capMeta.exportH}</div>
+              <div>Input: {capMeta.inputW}×{capMeta.inputH} → Output: {capMeta.exportW}×{capMeta.exportH}</div>
               {capMeta.note ? <div style={{ color: capMeta.downgraded ? "#f59e0b" : "#aab1d6" }}>{capMeta.note}</div> : null}
             </div>
           )}
@@ -696,13 +696,13 @@ let raf = 0;
           {resultUrl && (
             <>
               <div className="hr" />
-              <h2>E. ??蝯?</h2>
+              <h2>E. Result</h2>
               <div className="row" style={{ alignItems: "flex-start" }}>
                 <img className="result" src={resultUrl} alt="result" />
                 <div className="col">
-                  <div className="muted">??摰?嚗??+ ??嚗?/div>
+                  <div className="muted">Download or share your photo</div>
                   <div className="row">
-                    <button onClick={downloadLocal}>銝??祆?</button>
+                    <button onClick={downloadLocal}>Download</button>
                   </div>
                 </div>
               </div>
