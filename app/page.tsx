@@ -563,6 +563,10 @@ let raf = 0;
     setFacing((p) => (p === "user" ? "environment" : "user"));
   }
 
+  function retryCamera() {
+    startCamera(facing);
+  }
+
   async function downloadLocal() {
     if (!resultBlob) return;
     const a = document.createElement("a");
@@ -630,6 +634,7 @@ let raf = 0;
             <button onClick={() => setHiRes(v => !v)}>
               {hiRes ? "Hi-Res: On" : "Hi-Res: Off"}
             </button>
+            <button onClick={retryCamera}>Restart Camera</button>
             <select
               value={selectedRes}
               onChange={(e) => setSelectedRes(e.target.value)}
